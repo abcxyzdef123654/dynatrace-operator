@@ -14,7 +14,8 @@ permissions:
 
 env:
   DOCKER_REGISTRY: "quay.io"
-  DOCKER_REPOSITORY: "dynatrace/dynatrace-operator"
+  #DOCKER_REPOSITORY: "dynatrace/dynatrace-operator"
+  DOCKER_REPOSITORY: "adam_orcholski/dynatrace-operator"
 
 jobs:
   helm-test:
