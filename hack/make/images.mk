@@ -1,4 +1,5 @@
-IMAGE ?= quay.io/dynatrace/dynatrace-operator
+#IMAGE ?= quay.io/dynatrace/dynatrace-operator
+IMAGE ?= quay.io/adam_orcholski/dynatrace-operator
 #Needed for the e2e pipeline to work
 BRANCH ?= $(shell git branch --show-current)
 SNAPSHOT_SUFFIX ?= $(shell echo "${BRANCH}" | sed "s/[^a-zA-Z0-9_-]/-/g")

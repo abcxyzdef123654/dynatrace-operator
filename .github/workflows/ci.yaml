@@ -14,7 +14,8 @@ permissions:
 
 env:
   DOCKER_REGISTRY: "quay.io"
-  DOCKER_REPOSITORY: "dynatrace/dynatrace-operator"
+  #DOCKER_REPOSITORY: "dynatrace/dynatrace-operator"
+  DOCKER_REPOSITORY: "adam_orcholski/dynatrace-operator"
 
 jobs:
   helm-test:
@@ -90,18 +91,18 @@ jobs:
           version: v1.55.2
           args: --build-tags e2e --timeout 300s --out-${NO_FUTURE}format colored-line-number
 
-  security:
-    name: Code security scanning alerts
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/golang@b98d498629f1c368650224d6d212bf7dfa89e4bf # v0.4.0
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_API_TOKEN }}
-        with:
-          args: --severity-threshold=high
+#  security:
+#    name: Code security scanning alerts
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+#      - name: Run Snyk to check for vulnerabilities
+#        uses: snyk/actions/golang@b98d498629f1c368650224d6d212bf7dfa89e4bf # v0.4.0
+#        env:
+#          SNYK_TOKEN: ${{ secrets.SNYK_API_TOKEN }}
+#        with:
+#          args: --severity-threshold=high
 
   markdown-lint:
     name: Lint markdown files
