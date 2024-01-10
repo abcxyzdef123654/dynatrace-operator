@@ -24,4 +24,7 @@ else
 fi
 
 sha256=$(docker manifest push "${image_name}:${image_tag}")
+echo "sha256:${sha256}"
+echo
+echo
 echo "digest=${sha256}">> $GITHUB_OUTPUT
