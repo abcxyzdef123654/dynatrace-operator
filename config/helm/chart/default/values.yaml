@@ -194,3 +194,23 @@ csidriver:
         cpu: 20m
         memory: 30Mi
 
+rbac:
+  activeGate:
+    create: true
+    annotations: {}
+  edgeConnect:
+    create: true
+    annotations: {}
+  extensions:
+    create: true
+    annotations: {}
+  logMonitoring:
+    create: true
+    annotations: {}
+  oneAgent:
+    create: true
+    annotations: {}
+  nodeConfigCollector:
+    create: true
+    annotations: {}
+  supportability: true

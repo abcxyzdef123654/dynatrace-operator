@@ -8,15 +8,20 @@ import (
 	"time"
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/scheme/fake"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/communication"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/status"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/activegate"
 	dtclient "github.com/Dynatrace/dynatrace-operator/pkg/clients/dynatrace"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers"
-	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/activegate"
+	ag "github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/activegate"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/connectioninfo"
 	oaconnectioninfo "github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/connectioninfo/oneagent"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/extension"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/injection"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/istio"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/kspm"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/logmonitoring"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/oneagent"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/token"
 	dtwebhook "github.com/Dynatrace/dynatrace-operator/pkg/webhook"
@@ -322,7 +327,7 @@ func TestReconcileComponents(t *testing.T) {
 		Spec: dynakube.DynaKubeSpec{
 			APIURL:     "this-is-an-api-url",
 			OneAgent:   dynakube.OneAgentSpec{CloudNativeFullStack: &dynakube.CloudNativeFullStackSpec{}},
-			ActiveGate: dynakube.ActiveGateSpec{Capabilities: []dynakube.CapabilityDisplayName{dynakube.KubeMonCapability.DisplayName}},
+			ActiveGate: activegate.Spec{Capabilities: []activegate.CapabilityDisplayName{activegate.KubeMonCapability.DisplayName}},
 		},
 	}
 
@@ -339,14 +344,26 @@ func TestReconcileComponents(t *testing.T) {
 		mockInjectionReconciler := injectionmock.NewReconciler(t)
 		mockInjectionReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
 
+		mockLogMonitoringReconciler := controllermock.NewReconciler(t)
+		mockLogMonitoringReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
+
+		mockExtensionReconciler := controllermock.NewReconciler(t)
+		mockExtensionReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
+
+		mockKSPMReconciler := controllermock.NewReconciler(t)
+		mockKSPMReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
+
 		controller := &Controller{
 			client:    fakeClient,
 			apiReader: fakeClient,
 			fs:        afero.Afero{Fs: afero.NewMemMapFs()},
 
-			activeGateReconcilerBuilder: createActivegateReconcilerBuilder(mockActiveGateReconciler),
-			injectionReconcilerBuilder:  createInjectionReconcilerBuilder(mockInjectionReconciler),
-			oneAgentReconcilerBuilder:   createOneAgentReconcilerBuilder(mockOneAgentReconciler),
+			activeGateReconcilerBuilder:    createActivegateReconcilerBuilder(mockActiveGateReconciler),
+			injectionReconcilerBuilder:     createInjectionReconcilerBuilder(mockInjectionReconciler),
+			oneAgentReconcilerBuilder:      createOneAgentReconcilerBuilder(mockOneAgentReconciler),
+			logMonitoringReconcilerBuilder: createLogMonitoringReconcilerBuilder(mockLogMonitoringReconciler),
+			extensionReconcilerBuilder:     createExtensionReconcilerBuilder(mockExtensionReconciler),
+			kspmReconcilerBuilder:          createKSPMReconcilerBuilder(mockKSPMReconciler),
 		}
 		mockedDtc := dtclientmock.NewClient(t)
 
@@ -354,7 +371,7 @@ func TestReconcileComponents(t *testing.T) {
 
 		require.Error(t, err)
 		// goerrors.Join concats errors with \n
-		assert.Len(t, strings.Split(err.Error(), "\n"), 3) // ActiveGate, OneAgent and Injection reconcilers
+		assert.Len(t, strings.Split(err.Error(), "\n"), 6) // ActiveGate, Extension, OneAgent LogMonitoring, and Injection reconcilers
 	})
 
 	t.Run("exit early in case of no oneagent conncection info", func(t *testing.T) {
@@ -364,15 +381,19 @@ func TestReconcileComponents(t *testing.T) {
 		mockActiveGateReconciler := controllermock.NewReconciler(t)
 		mockActiveGateReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
 
-		mockInjectionReconciler := injectionmock.NewReconciler(t)
-		mockInjectionReconciler.On("Reconcile", mock.Anything).Return(oaconnectioninfo.NoOneAgentCommunicationHostsError)
+		mockExtensionReconciler := controllermock.NewReconciler(t)
+		mockExtensionReconciler.On("Reconcile", mock.Anything).Return(errors.New("BOOM"))
+
+		mockLogMonitoringReconciler := injectionmock.NewReconciler(t)
+		mockLogMonitoringReconciler.On("Reconcile", mock.Anything).Return(oaconnectioninfo.NoOneAgentCommunicationHostsError)
 
 		controller := &Controller{
-			client:                      fakeClient,
-			apiReader:                   fakeClient,
-			fs:                          afero.Afero{Fs: afero.NewMemMapFs()},
-			activeGateReconcilerBuilder: createActivegateReconcilerBuilder(mockActiveGateReconciler),
-			injectionReconcilerBuilder:  createInjectionReconcilerBuilder(mockInjectionReconciler),
+			client:                         fakeClient,
+			apiReader:                      fakeClient,
+			fs:                             afero.Afero{Fs: afero.NewMemMapFs()},
+			activeGateReconcilerBuilder:    createActivegateReconcilerBuilder(mockActiveGateReconciler),
+			logMonitoringReconcilerBuilder: createLogMonitoringReconcilerBuilder(mockLogMonitoringReconciler),
+			extensionReconcilerBuilder:     createExtensionReconcilerBuilder(mockExtensionReconciler),
 		}
 		mockedDtc := dtclientmock.NewClient(t)
 
@@ -380,11 +401,11 @@ func TestReconcileComponents(t *testing.T) {
 
 		require.Error(t, err)
 		// goerrors.Join concats errors with \n
-		assert.Len(t, strings.Split(err.Error(), "\n"), 1) // ActiveGate, no OneAgent connection info is not an error
+		assert.Len(t, strings.Split(err.Error(), "\n"), 2) // ActiveGate, Extension, no OneAgent connection info is not an error
 	})
 }
 
-func createActivegateReconcilerBuilder(reconciler controllers.Reconciler) activegate.ReconcilerBuilder {
+func createActivegateReconcilerBuilder(reconciler controllers.Reconciler) ag.ReconcilerBuilder {
 	return func(_ client.Client, _ client.Reader, _ *dynakube.DynaKube, _ dtclient.Client, _ *istio.Client, _ token.Tokens) controllers.Reconciler {
 		return reconciler
 	}
@@ -396,8 +417,26 @@ func createOneAgentReconcilerBuilder(reconciler controllers.Reconciler) oneagent
 	}
 }
 
+func createLogMonitoringReconcilerBuilder(reconciler controllers.Reconciler) logmonitoring.ReconcilerBuilder {
+	return func(_ client.Client, _ client.Reader, _ dtclient.Client, _ *dynakube.DynaKube) controllers.Reconciler {
+		return reconciler
+	}
+}
+
+func createExtensionReconcilerBuilder(reconciler controllers.Reconciler) extension.ReconcilerBuilder {
+	return func(_ client.Client, _ client.Reader, _ *dynakube.DynaKube) controllers.Reconciler {
+		return reconciler
+	}
+}
+
 func createInjectionReconcilerBuilder(reconciler *injectionmock.Reconciler) injection.ReconcilerBuilder {
 	return func(_ client.Client, _ client.Reader, _ dtclient.Client, _ *istio.Client, _ *dynakube.DynaKube) controllers.Reconciler {
+		return reconciler
+	}
+}
+
+func createKSPMReconcilerBuilder(reconciler controllers.Reconciler) kspm.ReconcilerBuilder {
+	return func(_ client.Client, _ client.Reader, _ *dynakube.DynaKube) controllers.Reconciler {
 		return reconciler
 	}
 }
@@ -609,17 +648,15 @@ func assertCondition(t *testing.T, dk *dynakube.DynaKube, expectedConditionType 
 
 func getTestDynkubeStatus() *dynakube.DynaKubeStatus {
 	return &dynakube.DynaKubeStatus{
-		ActiveGate: dynakube.ActiveGateStatus{
-			ConnectionInfoStatus: dynakube.ActiveGateConnectionInfoStatus{
-				ConnectionInfoStatus: dynakube.ConnectionInfoStatus{
-					TenantUUID: testUUID,
-					Endpoints:  "endpoint",
-				},
+		ActiveGate: activegate.Status{
+			ConnectionInfo: communication.ConnectionInfo{
+				TenantUUID: testUUID,
+				Endpoints:  "endpoint",
 			},
 		},
 		OneAgent: dynakube.OneAgentStatus{
 			ConnectionInfoStatus: dynakube.OneAgentConnectionInfoStatus{
-				ConnectionInfoStatus: dynakube.ConnectionInfoStatus{
+				ConnectionInfo: communication.ConnectionInfo{
 					TenantUUID: testUUID,
 					Endpoints:  "endpoint",
 				},
@@ -649,7 +686,7 @@ func createTenantSecrets(dk *dynakube.DynaKube) []client.Object {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      dk.ActivegateTenantSecret(),
+				Name:      dk.ActiveGate().GetTenantSecretName(),
 				Namespace: testNamespace,
 			},
 			Data: map[string][]byte{

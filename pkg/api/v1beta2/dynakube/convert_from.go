@@ -99,6 +99,8 @@ func (dst *DynaKube) fromStatus(src *v1beta3.DynaKube) {
 	dst.Status.Phase = src.Status.Phase
 	dst.Status.UpdatedTimestamp = src.Status.UpdatedTimestamp
 	dst.Status.KubeSystemUUID = src.Status.KubeSystemUUID
+	dst.Status.KubernetesClusterMEID = src.Status.KubernetesClusterMEID
+	dst.Status.KubernetesClusterName = src.Status.KubernetesClusterName
 }
 
 func (dst *DynaKube) fromOneAgentStatus(src v1beta3.DynaKube) {
@@ -116,7 +118,7 @@ func (dst *DynaKube) fromOneAgentStatus(src v1beta3.DynaKube) {
 	}
 
 	// Connection-Info
-	dst.Status.OneAgent.ConnectionInfoStatus.ConnectionInfoStatus = (ConnectionInfoStatus)(src.Status.OneAgent.ConnectionInfoStatus.ConnectionInfoStatus)
+	dst.Status.OneAgent.ConnectionInfoStatus.ConnectionInfoStatus = (ConnectionInfoStatus)(src.Status.OneAgent.ConnectionInfoStatus.ConnectionInfo)
 
 	for _, host := range src.Status.OneAgent.ConnectionInfoStatus.CommunicationHosts {
 		tmp := CommunicationHostStatus{
@@ -133,7 +135,7 @@ func (dst *DynaKube) fromOneAgentStatus(src v1beta3.DynaKube) {
 }
 
 func (dst *DynaKube) fromActiveGateStatus(src v1beta3.DynaKube) {
-	dst.Status.ActiveGate.ConnectionInfoStatus.ConnectionInfoStatus = (ConnectionInfoStatus)(src.Status.ActiveGate.ConnectionInfoStatus.ConnectionInfoStatus)
+	dst.Status.ActiveGate.ConnectionInfoStatus.ConnectionInfoStatus = (ConnectionInfoStatus)(src.Status.ActiveGate.ConnectionInfo)
 	dst.Status.ActiveGate.ServiceIPs = src.Status.ActiveGate.ServiceIPs
 	dst.Status.ActiveGate.VersionStatus = src.Status.ActiveGate.VersionStatus
 }

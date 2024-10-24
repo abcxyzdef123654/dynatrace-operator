@@ -5,8 +5,8 @@
 package edgeconnect
 
 import (
-	"strings"
-
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/image"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/proxy"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/status"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
@@ -35,10 +35,10 @@ type EdgeConnectSpec struct { //nolint:revive
 
 	// General configurations for proxy settings.
 	// +kubebuilder:validation:Optional
-	Proxy *ProxySpec `json:"proxy,omitempty"`
+	Proxy *proxy.Spec `json:"proxy,omitempty"`
 
 	// Overrides the default image
-	ImageRef ImageRefSpec `json:"imageRef,omitempty"`
+	ImageRef image.Ref `json:"imageRef,omitempty"`
 
 	// Location of the Dynatrace API to connect to, including your specific environment UUID
 	// +kubebuilder:validation:Required
@@ -99,32 +99,6 @@ type OAuthSpec struct {
 	Provisioner bool `json:"provisioner"`
 }
 
-type ImageRefSpec struct {
-	// Custom EdgeConnect image repository
-	// +kubebuilder:example:="docker.io/dynatrace/edgeconnect"
-	Repository string `json:"repository,omitempty"`
-
-	// Indicates version of the EdgeConnect image to use
-	Tag string `json:"tag,omitempty"`
-}
-
-type ProxySpec struct {
-	// Server address (hostname or IP address) of the proxy.
-	Host string `json:"host,omitempty"`
-
-	// NoProxy represents the NO_PROXY or no_proxy environment
-	// variable. It specifies a string that contains comma-separated values
-	// specifying hosts that should be excluded from proxying.
-	NoProxy string `json:"noProxy,omitempty"`
-
-	// Secret name which contains the username and password used for authentication with the proxy, using the
-	// "Basic" HTTP authentication scheme.
-	AuthRef string `json:"authRef,omitempty"`
-
-	// Port of the proxy.
-	Port uint32 `json:"port,omitempty"`
-}
-
 type KubernetesAutomationSpec struct {
 	// Enables Kubernetes Automation for Workflows
 	Enabled bool `json:"enabled,omitempty"`
@@ -167,7 +141,6 @@ func (dk *EdgeConnectStatus) SetPhase(phase status.DeploymentPhase) bool {
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:storageversion
-// +kubebuilder:validation:XValidation:rule="size(self.metadata.name) <= 40",reason="FieldValueInvalid",fieldPath=".metadata",message="The length limit for the name of a EdgeConnect is 40, because it is the base for the name of resources related to the EdgeConnect. The limit is necessary because kubernetes uses the name of some resources for the label value, which has a limit of 63 characters."
 type EdgeConnect struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -194,38 +167,4 @@ const (
 
 func init() {
 	v1alpha2.SchemeBuilder.Register(&EdgeConnect{}, &EdgeConnectList{})
-}
-
-func (e *EdgeConnect) HostPatterns() []string {
-	if !e.IsK8SAutomationEnabled() {
-		return e.Spec.HostPatterns
-	}
-
-	var hostPatterns []string
-
-	for _, hostPattern := range e.Spec.HostPatterns {
-		if !strings.EqualFold(hostPattern, e.K8sAutomationHostPattern()) {
-			hostPatterns = append(hostPatterns, hostPattern)
-		}
-	}
-
-	hostPatterns = append(hostPatterns, e.K8sAutomationHostPattern())
-
-	return hostPatterns
-}
-
-type HostMapping struct {
-	From string `json:"from"`
-	To   string `json:"to"`
-}
-
-func (e *EdgeConnect) HostMappings() []HostMapping {
-	hostMappings := make([]HostMapping, 0)
-	hostMappings = append(hostMappings, HostMapping{From: e.K8sAutomationHostPattern(), To: KubernetesDefaultDNS})
-
-	return hostMappings
-}
-
-func (e *EdgeConnect) K8sAutomationHostPattern() string {
-	return e.Name + "." + e.Namespace + "." + e.Status.KubeSystemUID + "." + kubernetesHostnameSuffix
 }

@@ -44,11 +44,6 @@ type EdgeConnectSecret struct {
 	Resource          string `yaml:"resource"`
 }
 
-type OtelSecret struct {
-	Endpoint string `yaml:"endpoint"`
-	ApiToken string `yaml:"apiToken"`
-}
-
 func manyFromConfig(fs afero.Fs, path string) ([]Secret, error) {
 	secretConfigFile, err := afero.ReadFile(fs, path)
 
@@ -156,7 +151,7 @@ func DeleteTenantSecret(secretName, secretNamespace string) features.Func {
 	}
 }
 
-func CreateClientSecret(secretConfig EdgeConnectSecret, name, namespace string) features.Func {
+func CreateClientSecret(secretConfig *EdgeConnectSecret, name, namespace string) features.Func {
 	return func(ctx context.Context, t *testing.T, envConfig *envconf.Config) context.Context {
 		defaultSecret := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{

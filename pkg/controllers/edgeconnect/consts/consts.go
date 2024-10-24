@@ -1,11 +1,11 @@
 package consts
 
+import "github.com/Dynatrace/dynatrace-operator/pkg/api"
+
 const (
-	InternalPrefix                   = "internal.operator.dynatrace.com/"
-	EdgeConnectAnnotationSecretHash  = InternalPrefix + "secret-hash"
+	EdgeConnectAnnotationSecretHash  = api.InternalFlagPrefix + "secret-hash"
 	EdgeConnectUserProvisioned       = "user-provisioned"
 	EdgeConnectContainerName         = "edge-connect"
-	EdgeConnectServiceAccountName    = "dynatrace-edgeconnect"
 	EdgeConnectMountPath             = "/etc/ssl"
 	EdgeConnectCustomCertificateName = "certificate.cer"
 	EdgeConnectCustomCAVolumeName    = "ca-certs"
@@ -22,4 +22,7 @@ const (
 	KeyEdgeConnectId                = "id"
 
 	AnnotationEdgeConnectContainerAppArmor = "container.apparmor.security.beta.kubernetes.io/" + EdgeConnectContainerName
+
+	// SecretConfigConditionType identifies the secret config condition.
+	SecretConfigConditionType = "SecretConfigConditionType"
 )

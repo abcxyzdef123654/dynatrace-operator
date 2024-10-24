@@ -29,17 +29,13 @@ rules:
       - list
       - watch
       - update
-      - create
   - apiGroups:
       - dynatrace.com
     resources:
-      - dynakubes/finalizers
       - dynakubes/status
-      - edgeconnects/finalizers
       - edgeconnects/status
     verbs:
       - update
-
   - apiGroups:
       - apps
     resources:
@@ -80,7 +76,6 @@ rules:
       - deployments/finalizers
     verbs:
       - update
-
   - apiGroups:
       - ""
     resources:
@@ -100,8 +95,6 @@ rules:
       - get
       - list
       - watch
-      - delete
-      - create
   - apiGroups:
       - ""
     resources:
@@ -118,8 +111,9 @@ rules:
     resources:
       - events
     verbs:
-      - list
       - create
+      - get
+      - list
   - apiGroups:
       - ""
     resources:
@@ -132,21 +126,6 @@ rules:
       - list
       - watch
   - apiGroups:
-      - ""
-    resources:
-      - pods/log
-    verbs:
-      - get
-
-  - apiGroups:
-      - monitoring.coreos.com
-    resources:
-      - servicemonitors
-    verbs:
-      - get
-      - create
-
-  - apiGroups:
       - networking.istio.io
     resources:
       - serviceentries
@@ -157,7 +136,6 @@ rules:
       - create
       - update
       - delete
-
   - apiGroups:
       - coordination.k8s.io
     resources:

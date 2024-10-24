@@ -6,14 +6,19 @@ import (
 	"testing"
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/scheme/fake"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/value"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/status"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/activegate"
 	dtclient "github.com/Dynatrace/dynatrace-operator/pkg/clients/dynatrace"
-	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/activegate"
+	ag "github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/activegate"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/activegate/capability"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/apimonitoring"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/deploymentmetadata"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/extension"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/injection"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/kspm"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/logmonitoring"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/oneagent"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/proxy"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/labels"
@@ -79,11 +84,11 @@ func TestReconcileActiveGate_Reconcile(t *testing.T) {
 			},
 			Spec: dynakube.DynaKubeSpec{
 				APIURL: testApiUrl,
-				Proxy: &dynakube.DynaKubeProxy{
+				Proxy: &value.Source{
 					Value:     "https://proxy:1234",
 					ValueFrom: "",
 				},
-				ActiveGate: dynakube.ActiveGateSpec{Capabilities: []dynakube.CapabilityDisplayName{dynakube.KubeMonCapability.DisplayName}},
+				ActiveGate: activegate.Spec{Capabilities: []activegate.CapabilityDisplayName{activegate.KubeMonCapability.DisplayName}},
 			},
 
 			Status: *getTestDynkubeStatus(),
@@ -121,9 +126,9 @@ func TestReconcileActiveGate_Reconcile(t *testing.T) {
 			},
 			Spec: dynakube.DynaKubeSpec{
 				APIURL: testApiUrl,
-				ActiveGate: dynakube.ActiveGateSpec{
-					Capabilities: []dynakube.CapabilityDisplayName{
-						dynakube.KubeMonCapability.DisplayName,
+				ActiveGate: activegate.Spec{
+					Capabilities: []activegate.CapabilityDisplayName{
+						activegate.KubeMonCapability.DisplayName,
 					},
 				},
 			},
@@ -202,11 +207,11 @@ func TestReconcile_ActiveGateMultiCapability(t *testing.T) {
 		},
 		Spec: dynakube.DynaKubeSpec{
 			APIURL: testApiUrl,
-			ActiveGate: dynakube.ActiveGateSpec{
-				Capabilities: []dynakube.CapabilityDisplayName{
-					dynakube.MetricsIngestCapability.DisplayName,
-					dynakube.KubeMonCapability.DisplayName,
-					dynakube.RoutingCapability.DisplayName,
+			ActiveGate: activegate.Spec{
+				Capabilities: []activegate.CapabilityDisplayName{
+					activegate.MetricsIngestCapability.DisplayName,
+					activegate.KubeMonCapability.DisplayName,
+					activegate.RoutingCapability.DisplayName,
 				},
 			},
 		},
@@ -246,7 +251,7 @@ func TestReconcile_ActiveGateMultiCapability(t *testing.T) {
 	err = r.client.Get(context.Background(), client.ObjectKey{Name: dk.Name, Namespace: dk.Namespace}, dk)
 	require.NoError(t, err)
 
-	dk.Spec.ActiveGate.Capabilities = []dynakube.CapabilityDisplayName{}
+	dk.Spec.ActiveGate.Capabilities = []activegate.CapabilityDisplayName{}
 	err = r.client.Update(context.Background(), dk)
 	require.NoError(t, err)
 
@@ -280,9 +285,9 @@ func TestAPIError(t *testing.T) {
 		Spec: dynakube.DynaKubeSpec{
 			APIURL:   testApiUrl,
 			OneAgent: dynakube.OneAgentSpec{CloudNativeFullStack: &dynakube.CloudNativeFullStackSpec{HostInjectSpec: dynakube.HostInjectSpec{}}},
-			ActiveGate: dynakube.ActiveGateSpec{
-				Capabilities: []dynakube.CapabilityDisplayName{
-					dynakube.KubeMonCapability.DisplayName,
+			ActiveGate: activegate.Spec{
+				Capabilities: []activegate.CapabilityDisplayName{
+					activegate.KubeMonCapability.DisplayName,
 				},
 			},
 		},
@@ -413,10 +418,14 @@ func createFakeClientAndReconciler(t *testing.T, mockClient dtclient.Client, dk 
 		dynatraceClientBuilder:              mockDtcBuilder,
 		fs:                                  afero.Afero{Fs: afero.NewMemMapFs()},
 		deploymentMetadataReconcilerBuilder: deploymentmetadata.NewReconciler,
-		activeGateReconcilerBuilder:         activegate.NewReconciler,
+		activeGateReconcilerBuilder:         ag.NewReconciler,
 		apiMonitoringReconcilerBuilder:      apimonitoring.NewReconciler,
 		injectionReconcilerBuilder:          injection.NewReconciler,
 		oneAgentReconcilerBuilder:           oneagent.NewReconciler,
+		logMonitoringReconcilerBuilder:      logmonitoring.NewReconciler,
+		proxyReconcilerBuilder:              proxy.NewReconciler,
+		extensionReconcilerBuilder:          extension.NewReconciler,
+		kspmReconcilerBuilder:               kspm.NewReconciler,
 		clusterID:                           testUID,
 	}
 

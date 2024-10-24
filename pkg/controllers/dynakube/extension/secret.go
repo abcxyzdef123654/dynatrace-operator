@@ -15,7 +15,7 @@ import (
 )
 
 func (r *reconciler) reconcileSecret(ctx context.Context) error {
-	if !r.dk.PrometheusEnabled() {
+	if !r.dk.IsExtensionsEnabled() {
 		if meta.FindStatusCondition(*r.dk.Conditions(), consts.ExtensionsSecretConditionType) == nil {
 			return nil
 		}
@@ -95,9 +95,5 @@ func (r *reconciler) buildSecret(eecToken dttoken.Token, otelcToken dttoken.Toke
 }
 
 func (r *reconciler) getSecretName() string {
-	return GetSecretName(r.dk.Name)
-}
-
-func GetSecretName(dynakubeName string) string {
-	return dynakubeName + consts.SecretSuffix
+	return r.dk.ExtensionsTokenSecretName()
 }

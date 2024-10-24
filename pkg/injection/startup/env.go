@@ -29,16 +29,18 @@ type environment struct {
 	InstallVersion  string `json:"installVersion"`
 	InstallPath     string `json:"installPath"`
 
-	K8NodeName    string `json:"k8NodeName"`
-	K8PodName     string `json:"k8PodName"`
-	K8PodUID      string `json:"k8BasePodUID"`
-	K8BasePodName string `json:"k8BasePodName"`
-	K8Namespace   string `json:"k8Namespace"`
-	K8ClusterID   string `json:"k8ClusterID"`
-	K8ClusterName string `json:"k8sClusterName"`
+	K8NodeName        string `json:"k8NodeName"`
+	K8PodName         string `json:"k8PodName"`
+	K8PodUID          string `json:"k8BasePodUID"`
+	K8BasePodName     string `json:"k8BasePodName"`
+	K8Namespace       string `json:"k8Namespace"`
+	K8ClusterID       string `json:"k8ClusterID"`
+	K8ClusterName     string `json:"k8sClusterName"`
+	K8ClusterEntityID string `json:"k8sClusterEntityID"`
 
-	WorkloadKind string `json:"workloadKind"`
-	WorkloadName string `json:"workloadName"`
+	WorkloadKind        string            `json:"workloadKind"`
+	WorkloadName        string            `json:"workloadName"`
+	WorkloadAnnotations map[string]string `json:"workloadAnnotations"`
 
 	InstallerTech []string        `json:"installerTech"`
 	Containers    []ContainerInfo `json:"containers"`
@@ -115,6 +117,7 @@ func (env *environment) getMetadataEnrichmentFieldSetters() []func() error {
 	return []func() error{
 		env.addWorkloadKind,
 		env.addWorkloadName,
+		env.addWorkloadAnnotations,
 	}
 }
 
@@ -123,6 +126,7 @@ func (env *environment) setOptionalFields() {
 	env.addInstallerFlavor()
 	env.addInstallVersion()
 	env.addClusterName()
+	env.addEntityID()
 }
 
 func (env *environment) setMutationTypeFields() {
@@ -272,9 +276,32 @@ func (env *environment) addWorkloadName() error {
 	return nil
 }
 
+func (env *environment) addWorkloadAnnotations() error {
+	workloadAnnotationsJson, err := checkEnvVar(consts.EnrichmentWorkloadAnnotationsEnv)
+	if err != nil {
+		return err
+	}
+
+	workloadAnnotations := map[string]string{}
+	err = json.Unmarshal([]byte(workloadAnnotationsJson), &workloadAnnotations)
+
+	if err != nil {
+		return err
+	}
+
+	env.WorkloadAnnotations = workloadAnnotations
+
+	return nil
+}
+
 func (env *environment) addClusterName() {
 	clusterName, _ := checkEnvVar(consts.EnrichmentClusterNameEnv)
 	env.K8ClusterName = clusterName
+}
+
+func (env *environment) addEntityID() {
+	entityID, _ := checkEnvVar(consts.EnrichmentClusterEntityIDEnv)
+	env.K8ClusterEntityID = entityID
 }
 
 func (env *environment) addInstallerUrl() {

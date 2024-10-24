@@ -86,9 +86,14 @@ tests:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.name
+                envFrom:
+                  - configMapRef:
+                      name: install-config
                 ports:
                   - containerPort: 10080
-                    name: server-port
+                    name: livez
+                  - containerPort: 8080
+                    name: metrics
                 resources:
                   requests:
                     cpu: 50m
@@ -102,7 +107,7 @@ tests:
                 livenessProbe:
                   httpGet:
                     path: /livez
-                    port: server-port
+                    port: livez
                     scheme: HTTP
                   initialDelaySeconds: 15
                   periodSeconds: 10
@@ -259,9 +264,14 @@ tests:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.name
+                envFrom:
+                  - configMapRef:
+                      name: install-config
                 ports:
                   - containerPort: 10080
-                    name: server-port
+                    name: livez
+                  - containerPort: 8080
+                    name: metrics
                 resources:
                   requests:
                     cpu: 50m
@@ -275,7 +285,7 @@ tests:
                 livenessProbe:
                   httpGet:
                     path: /livez
-                    port: server-port
+                    port: livez
                     scheme: HTTP
                   initialDelaySeconds: 15
                   periodSeconds: 10

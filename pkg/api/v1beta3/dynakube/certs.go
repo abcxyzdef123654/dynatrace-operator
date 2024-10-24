@@ -27,7 +27,7 @@ import (
 
 const (
 	TrustedCAKey = "certs"
-	TlsCertKey   = "server.crt"
+	TLSCertKey   = "server.crt"
 )
 
 func (dk *DynaKube) TrustedCAs(ctx context.Context, kubeReader client.Reader) ([]byte, error) {
@@ -46,8 +46,8 @@ func (dk *DynaKube) TrustedCAs(ctx context.Context, kubeReader client.Reader) ([
 	return nil, nil
 }
 
-func (dk *DynaKube) ActiveGateTlsCert(ctx context.Context, kubeReader client.Reader) ([]byte, error) {
-	if dk.HasActiveGateCaCert() {
+func (dk *DynaKube) ActiveGateTLSCert(ctx context.Context, kubeReader client.Reader) ([]byte, error) {
+	if dk.ActiveGate().HasCaCert() {
 		secretName := dk.Spec.ActiveGate.TlsSecretName
 
 		var tlsSecret corev1.Secret
@@ -57,7 +57,7 @@ func (dk *DynaKube) ActiveGateTlsCert(ctx context.Context, kubeReader client.Rea
 			return nil, errors.WithMessage(err, fmt.Sprintf("failed to get activeGate tlsCert from %s secret", secretName))
 		}
 
-		if tlsCertKey, ok := tlsSecret.Data[TlsCertKey]; ok {
+		if tlsCertKey, ok := tlsSecret.Data[TLSCertKey]; ok {
 			return tlsCertKey, nil
 		}
 	}

@@ -1,25 +1,14 @@
 package dynakube
 
 import (
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/image"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 type ExtensionsSpec struct {
 	// +kubebuilder:validation:Optional
-	Prometheus PrometheusSpec `json:"prometheus,omitempty"`
-}
-
-type TemplatesSpec struct {
-
-	// +kubebuilder:validation:Optional
-	OpenTelemetryCollector OpenTelemetryCollectorSpec `json:"openTelemetryCollector,omitempty"`
-	// +kubebuilder:validation:Optional
-	ExtensionExecutionController ExtensionExecutionControllerSpec `json:"extensionExecutionController,omitempty"`
-}
-
-type PrometheusSpec struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 type ExtensionExecutionControllerSpec struct {
@@ -41,7 +30,7 @@ type ExtensionExecutionControllerSpec struct {
 
 	// Overrides the default image
 	// +kubebuilder:validation:Optional
-	ImageRef ImageRefSpec `json:"imageRef,omitempty"`
+	ImageRef image.Ref `json:"imageRef,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	TlsRefName string `json:"tlsRefName,omitempty"`
@@ -49,6 +38,10 @@ type ExtensionExecutionControllerSpec struct {
 	// Defines name of ConfigMap containing custom configuration file
 	// +kubebuilder:validation:Optional
 	CustomConfig string `json:"customConfig,omitempty"`
+
+	// Defines name of Secret containing certificates for custom extensions signature validation
+	// +kubebuilder:validation:Optional
+	CustomExtensionCertificates string `json:"customExtensionCertificates,omitempty"`
 
 	// Define resources' requests and limits for single ExtensionExecutionController pod
 	// +kubebuilder:validation:Optional
@@ -80,7 +73,7 @@ type OpenTelemetryCollectorSpec struct {
 
 	// Overrides the default image
 	// +kubebuilder:validation:Optional
-	ImageRef ImageRefSpec `json:"imageRef,omitempty"`
+	ImageRef image.Ref `json:"imageRef,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	TlsRefName string `json:"tlsRefName,omitempty"`
@@ -96,13 +89,4 @@ type OpenTelemetryCollectorSpec struct {
 	// Adds TopologySpreadConstraints for the OtelCollector pods
 	// +kubebuilder:validation:Optional
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
-}
-
-type ImageRefSpec struct {
-	// Custom image repository
-	// +kubebuilder:example:="docker.io/dynatrace/image-name"
-	Repository string `json:"repository,omitempty"`
-
-	// Indicates a tag of the image to use
-	Tag string `json:"tag,omitempty"`
 }

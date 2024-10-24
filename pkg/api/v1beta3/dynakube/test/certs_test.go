@@ -6,6 +6,7 @@ import (
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/scheme/fake"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/activegate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +24,7 @@ const (
 func TestCerts(t *testing.T) {
 	t.Run(`get trusted certificate authorities`, trustedCAsTester)
 	t.Run(`get no tls certificates`, activeGateTlsNoCertificateTester)
-	activeGateTlsCertificate(t)
+	activeGateTLSCertificate(t)
 }
 
 func trustedCAsTester(t *testing.T) {
@@ -57,27 +58,27 @@ func trustedCAsTester(t *testing.T) {
 func activeGateTlsNoCertificateTester(t *testing.T) {
 	dk := dynakube.DynaKube{
 		Spec: dynakube.DynaKubeSpec{
-			ActiveGate: dynakube.ActiveGateSpec{
-				Capabilities:  []dynakube.CapabilityDisplayName{dynakube.KubeMonCapability.DisplayName},
+			ActiveGate: activegate.Spec{
+				Capabilities:  []activegate.CapabilityDisplayName{activegate.KubeMonCapability.DisplayName},
 				TlsSecretName: testSecretName,
 			},
 		},
 	}
 
 	kubeReader := fake.NewClient()
-	tlsCert, err := dk.ActiveGateTlsCert(context.TODO(), kubeReader)
+	tlsCert, err := dk.ActiveGateTLSCert(context.TODO(), kubeReader)
 
 	require.Error(t, err)
 	assert.Empty(t, tlsCert)
 
 	emptyDk := dynakube.DynaKube{}
-	tlsCert, err = emptyDk.ActiveGateTlsCert(context.TODO(), kubeReader)
+	tlsCert, err = emptyDk.ActiveGateTLSCert(context.TODO(), kubeReader)
 
 	require.NoError(t, err)
 	assert.Empty(t, tlsCert)
 }
 
-func activeGateTlsCertificate(t *testing.T) {
+func activeGateTLSCertificate(t *testing.T) {
 	testFunc := func(t *testing.T, data map[string][]byte) {
 		kubeReader := fake.NewClient(&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: testSecretName},
@@ -86,13 +87,13 @@ func activeGateTlsCertificate(t *testing.T) {
 
 		dk := dynakube.DynaKube{
 			Spec: dynakube.DynaKubeSpec{
-				ActiveGate: dynakube.ActiveGateSpec{
-					Capabilities:  []dynakube.CapabilityDisplayName{dynakube.KubeMonCapability.DisplayName},
+				ActiveGate: activegate.Spec{
+					Capabilities:  []activegate.CapabilityDisplayName{activegate.KubeMonCapability.DisplayName},
 					TlsSecretName: testSecretName,
 				},
 			},
 		}
-		tlsCert, err := dk.ActiveGateTlsCert(context.TODO(), kubeReader)
+		tlsCert, err := dk.ActiveGateTLSCert(context.TODO(), kubeReader)
 
 		require.NoError(t, err)
 		assert.Equal(t, testSecretValue, string(tlsCert))
@@ -100,7 +101,7 @@ func activeGateTlsCertificate(t *testing.T) {
 
 	t.Run("get tls certificates from server.crt", func(t *testing.T) {
 		testFunc(t, map[string][]byte{
-			dynakube.TlsCertKey: []byte(testSecretValue),
+			dynakube.TLSCertKey: []byte(testSecretValue),
 		})
 	})
 }

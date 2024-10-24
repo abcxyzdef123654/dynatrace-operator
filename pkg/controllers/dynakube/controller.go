@@ -18,6 +18,8 @@ import (
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/extension"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/injection"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/istio"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/kspm"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/logmonitoring"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/oneagent"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/proxy"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/token"
@@ -74,7 +76,10 @@ func NewDynaKubeController(kubeClient client.Client, apiReader client.Reader, co
 		apiMonitoringReconcilerBuilder:      apimonitoring.NewReconciler,
 		injectionReconcilerBuilder:          injection.NewReconciler,
 		istioReconcilerBuilder:              istio.NewReconciler,
-		extensionBuilder:                    extension.NewReconciler,
+		extensionReconcilerBuilder:          extension.NewReconciler,
+		logMonitoringReconcilerBuilder:      logmonitoring.NewReconciler,
+		proxyReconcilerBuilder:              proxy.NewReconciler,
+		kspmReconcilerBuilder:               kspm.NewReconciler,
 	}
 }
 
@@ -107,7 +112,10 @@ type Controller struct {
 	apiMonitoringReconcilerBuilder      apimonitoring.ReconcilerBuilder
 	injectionReconcilerBuilder          injection.ReconcilerBuilder
 	istioReconcilerBuilder              istio.ReconcilerBuilder
-	extensionBuilder                    extension.ReconcilerBuilder
+	extensionReconcilerBuilder          extension.ReconcilerBuilder
+	logMonitoringReconcilerBuilder      logmonitoring.ReconcilerBuilder
+	proxyReconcilerBuilder              proxy.ReconcilerBuilder
+	kspmReconcilerBuilder               kspm.ReconcilerBuilder
 
 	tokens            token.Tokens
 	operatorNamespace string
@@ -248,7 +256,7 @@ func (controller *Controller) reconcileDynaKube(ctx context.Context, dk *dynakub
 		return err
 	}
 
-	proxyReconciler := proxy.NewReconciler(controller.client, controller.apiReader, dk)
+	proxyReconciler := controller.proxyReconcilerBuilder(controller.client, controller.apiReader, dk)
 
 	err = proxyReconciler.Reconcile(ctx)
 	if err != nil {
@@ -315,7 +323,7 @@ func (controller *Controller) reconcileComponents(ctx context.Context, dynatrace
 		componentErrors = append(componentErrors, err)
 	}
 
-	extensionReconciler := extension.NewReconciler(controller.client, controller.apiReader, dk)
+	extensionReconciler := controller.extensionReconcilerBuilder(controller.client, controller.apiReader, dk)
 
 	err = extensionReconciler.Reconcile(ctx)
 	if err != nil {
@@ -325,6 +333,25 @@ func (controller *Controller) reconcileComponents(ctx context.Context, dynatrace
 	}
 
 	log.Info("start reconciling app injection")
+
+	log.Info("start reconciling LogMonitoring")
+
+	logMonitoringReconciler := controller.logMonitoringReconcilerBuilder(controller.client, controller.apiReader, dynatraceClient, dk)
+
+	err = logMonitoringReconciler.Reconcile(ctx)
+	if err != nil {
+		if errors.Is(err, oaconnectioninfo.NoOneAgentCommunicationHostsError) {
+			// missing communication hosts is not an error per se, just make sure next the reconciliation is happening ASAP
+			// this situation will clear itself after AG has been started
+			controller.setRequeueAfterIfNewIsShorter(fastUpdateInterval)
+
+			return goerrors.Join(componentErrors...)
+		}
+
+		log.Info("could not reconcile LogMonitoring")
+
+		componentErrors = append(componentErrors, err)
+	}
 
 	err = controller.injectionReconcilerBuilder(controller.client,
 		controller.apiReader,
@@ -367,6 +394,15 @@ func (controller *Controller) reconcileComponents(ctx context.Context, dynatrace
 		}
 
 		log.Info("could not reconcile OneAgent")
+
+		componentErrors = append(componentErrors, err)
+	}
+
+	kspmReconciler := controller.kspmReconcilerBuilder(controller.client, controller.apiReader, dk)
+
+	err = kspmReconciler.Reconcile(ctx)
+	if err != nil {
+		log.Info("could not reconcile kspm")
 
 		componentErrors = append(componentErrors, err)
 	}

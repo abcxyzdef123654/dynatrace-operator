@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/container"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/env"
 	k8spod "github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/pod"
 	maputils "github.com/Dynatrace/dynatrace-operator/pkg/util/map"
@@ -118,6 +119,13 @@ func (wh *webhook) isInjected(mutationRequest *dtwebhook.MutationRequest) bool {
 		}
 	}
 
+	installContainer := container.FindInitContainerInPodSpec(&mutationRequest.Pod.Spec, dtwebhook.InstallContainerName)
+	if installContainer != nil {
+		log.Info("Dynatrace init-container already present, skipping mutation, doing reinvocation", "containerName", dtwebhook.InstallContainerName)
+
+		return true
+	}
+
 	return false
 }
 
@@ -151,7 +159,9 @@ func (wh *webhook) handlePodMutation(ctx context.Context, mutationRequest *dtweb
 
 	mutationRequest.InstallContainer = createInstallInitContainerBase(wh.webhookImage, wh.clusterID, mutationRequest.Pod, mutationRequest.DynaKube)
 
-	isMutated := updateContainerInfo(mutationRequest.ToReinvocationRequest(), mutationRequest.InstallContainer)
+	_ = updateContainerInfo(mutationRequest.BaseRequest, mutationRequest.InstallContainer)
+
+	var isMutated bool
 
 	for _, mutator := range wh.mutators {
 		if !mutator.Enabled(mutationRequest.BaseRequest) {
@@ -183,7 +193,11 @@ func (wh *webhook) handlePodReinvocation(mutationRequest *dtwebhook.MutationRequ
 
 	reinvocationRequest := mutationRequest.ToReinvocationRequest()
 
-	updateContainerInfo(reinvocationRequest, nil)
+	isMutated := updateContainerInfo(reinvocationRequest.BaseRequest, nil)
+
+	if !isMutated { // == no new containers were detected, we only mutate new containers during reinvoke
+		return false
+	}
 
 	for _, mutator := range wh.mutators {
 		if mutator.Enabled(mutationRequest.BaseRequest) {

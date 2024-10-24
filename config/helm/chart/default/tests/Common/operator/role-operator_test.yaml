@@ -26,17 +26,13 @@ tests:
                 - list
                 - watch
                 - update
-                - create
             - apiGroups:
                 - dynatrace.com
               resources:
-                - dynakubes/finalizers
                 - dynakubes/status
-                - edgeconnects/finalizers
                 - edgeconnects/status
               verbs:
                 - update
-
             - apiGroups:
                 - apps
               resources:
@@ -77,7 +73,6 @@ tests:
                 - deployments/finalizers
               verbs:
                 - update
-
             - apiGroups:
                 - ""
               resources:
@@ -97,8 +92,6 @@ tests:
                 - get
                 - list
                 - watch
-                - delete
-                - create
             - apiGroups:
                 - ""
               resources:
@@ -115,8 +108,9 @@ tests:
               resources:
                 - events
               verbs:
-                - list
                 - create
+                - get
+                - list
             - apiGroups:
                 - ""
               resources:
@@ -129,20 +123,6 @@ tests:
                 - list
                 - watch
             - apiGroups:
-                - ""
-              resources:
-                - pods/log
-              verbs:
-                - get
-            - apiGroups:
-                - monitoring.coreos.com
-              resources:
-                - servicemonitors
-              verbs:
-                - get
-                - create
-
-            - apiGroups:
                 - networking.istio.io
               resources:
                 - serviceentries
@@ -153,7 +133,6 @@ tests:
                 - create
                 - update
                 - delete
-
             - apiGroups:
                 - coordination.k8s.io
               resources:

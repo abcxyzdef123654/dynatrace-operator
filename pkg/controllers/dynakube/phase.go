@@ -28,7 +28,7 @@ func (controller *Controller) determineDynaKubePhase(dk *dynakube.DynaKube) stat
 }
 
 func (controller *Controller) determineActiveGatePhase(dk *dynakube.DynaKube) status.DeploymentPhase {
-	if dk.NeedsActiveGate() {
+	if dk.ActiveGate().IsEnabled() {
 		activeGatePods, err := controller.numberOfMissingActiveGatePods(dk)
 		if err != nil {
 			log.Error(err, "activegate statefulset could not be accessed", "dynakube", dk.Name)
@@ -53,15 +53,15 @@ func (controller *Controller) determineActiveGatePhase(dk *dynakube.DynaKube) st
 }
 
 func (controller *Controller) determineExtensionsExecutionControllerPhase(dk *dynakube.DynaKube) status.DeploymentPhase {
-	return controller.determinePrometheusStatefulsetPhase(dk, dynakube.ExtensionsExecutionControllerStatefulsetName)
+	return controller.determinePrometheusStatefulsetPhase(dk, dk.ExtensionsExecutionControllerStatefulsetName())
 }
 
 func (controller *Controller) determineExtensionsCollectorPhase(dk *dynakube.DynaKube) status.DeploymentPhase {
-	return controller.determinePrometheusStatefulsetPhase(dk, dynakube.ExtensionsCollectorStatefulsetName)
+	return controller.determinePrometheusStatefulsetPhase(dk, dk.ExtensionsCollectorStatefulsetName())
 }
 
 func (controller *Controller) determinePrometheusStatefulsetPhase(dk *dynakube.DynaKube, statefulsetName string) status.DeploymentPhase {
-	if dk.PrometheusEnabled() {
+	if dk.IsExtensionsEnabled() {
 		statefulSet := &appsv1.StatefulSet{}
 
 		err := controller.client.Get(context.Background(), types.NamespacedName{Name: statefulsetName, Namespace: dk.Namespace}, statefulSet)

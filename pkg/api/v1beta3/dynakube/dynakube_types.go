@@ -4,7 +4,11 @@
 package dynakube
 
 import (
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/value"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/activegate"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/kspm"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/logmonitoring"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,30 +36,6 @@ const (
 	ReasonTokenError string = "TokenError"
 )
 
-type DynaKubeProxy struct { //nolint:revive
-	// Proxy URL. It has preference over ValueFrom.
-	// +nullable
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Proxy value",order=32,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
-	Value string `json:"value,omitempty"`
-
-	// Secret containing proxy URL.
-	// +nullable
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Proxy secret",order=33,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:io.kubernetes:Secret"}
-	ValueFrom string `json:"valueFrom,omitempty"`
-}
-
-type DynaKubeValueSource struct { //nolint:revive
-	// Custom properties value.
-	// +nullable
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Custom properties value",order=32,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
-	Value string `json:"value,omitempty"`
-
-	// Custom properties secret.
-	// +nullable
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Custom properties secret",order=33,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:io.kubernetes:Secret"}
-	ValueFrom string `json:"valueFrom,omitempty"`
-}
-
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DynaKube is the Schema for the DynaKube API
@@ -69,7 +49,6 @@ type DynaKubeValueSource struct { //nolint:revive
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +operator-sdk:csv:customresourcedefinitions:displayName="Dynatrace DynaKube"
 // +operator-sdk:csv:customresourcedefinitions:resources={{StatefulSet,v1,},{DaemonSet,v1,},{Pod,v1,}}
-// +kubebuilder:validation:XValidation:rule="size(self.metadata.name) <= 40",reason="FieldValueInvalid",fieldPath=".metadata",message="The length limit for the name of a DynaKube is 40, because it is the base for the name of resources related to the DynaKube. (example: dkName-activegate-<some-hash>) The limit is necessary because kubernetes uses the name of some resources (example: StatefulSet) for the label value, which has a limit of 63 characters. (see https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set)"
 type DynaKube struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -88,10 +67,7 @@ type DynaKubeSpec struct { //nolint:revive
 	// Note: Applies to Dynatrace Operator, ActiveGate, and OneAgents.
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Proxy",order=3,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
-	Proxy *DynaKubeProxy `json:"proxy,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Templates TemplatesSpec `json:"templates,omitempty"`
+	Proxy *value.Source `json:"proxy,omitempty"`
 
 	// General configuration about OneAgent instances.
 	// You can't enable more than one module (classicFullStack, cloudNativeFullStack, hostMonitoring, or applicationMonitoring).
@@ -129,14 +105,21 @@ type DynaKubeSpec struct { //nolint:revive
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Custom PullSecret",order=8,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:io.kubernetes:Secret"}
 	CustomPullSecret string `json:"customPullSecret,omitempty"`
 
-	// General configuration about ActiveGate instances.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ActiveGate",xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	ActiveGate ActiveGateSpec `json:"activeGate,omitempty"`
+	// +kubebuilder:validation:Optional
+	Templates TemplatesSpec `json:"templates,omitempty"`
+
+	// General configuration about the LogMonitoring feature.
+	// +kubebuilder:validation:Optional
+	LogMonitoring *logmonitoring.Spec `json:"logMonitoring,omitempty"`
 
 	// Configuration for Metadata Enrichment.
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Metadata Enrichment",order=9,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced"}
 	MetadataEnrichment MetadataEnrichment `json:"metadataEnrichment,omitempty"`
+
+	// General configuration about ActiveGate instances.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ActiveGate",xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ActiveGate activegate.Spec `json:"activeGate,omitempty"`
 
 	// Configuration for thresholding Dynatrace API requests.
 	// +kubebuilder:validation:Optional
@@ -159,6 +142,22 @@ type DynaKubeSpec struct { //nolint:revive
 
 	// +kubebuilder:validation:Optional
 	Extensions ExtensionsSpec `json:"extensions,omitempty"`
+
+	// General configuration about the KSPM feature.
+	// +kubebuilder:validation:Optional
+	Kspm kspm.Spec `json:"kspm,omitempty"`
+}
+
+type TemplatesSpec struct {
+	// +kubebuilder:validation:Optional
+	KspmNodeConfigurationCollector kspm.NodeConfigurationCollectorSpec `json:"kspmNodeConfigurationCollector,omitempty"`
+	// +kubebuilder:validation:Optional
+	ExtensionExecutionController ExtensionExecutionControllerSpec `json:"extensionExecutionController,omitempty"`
+	// Low-level configuration options for the LogMonitoring feature.
+	// +kubebuilder:validation:Optional
+	LogMonitoring logmonitoring.TemplateSpec `json:"logMonitoring,omitempty"`
+	// +kubebuilder:validation:Optional
+	OpenTelemetryCollector OpenTelemetryCollectorSpec `json:"openTelemetryCollector,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

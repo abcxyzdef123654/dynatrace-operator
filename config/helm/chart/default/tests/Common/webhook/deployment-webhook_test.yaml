@@ -69,7 +69,7 @@ tests:
                     internal.dynatrace.com/app: webhook
                     internal.dynatrace.com/component: webhook
             volumes:
-              - emptyDir: { }
+              - emptyDir: {}
                 name: certs-dir
             affinity:
               nodeAffinity:
@@ -116,6 +116,9 @@ tests:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.name
+                envFrom:
+                  - configMapRef:
+                      name: install-config
                 livenessProbe:
                   httpGet:
                     path: /livez
@@ -128,6 +131,8 @@ tests:
                     name: server-port
                   - containerPort: 10080
                     name: livez
+                  - containerPort: 8080
+                    name: metrics
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -170,24 +175,24 @@ tests:
           key: a-special-taint
           value: a-special-value
     asserts:
-    - equal:
-        path: spec.template.spec.tolerations
-        value:
-          - effect: NoSchedule
-            key: a-special-taint
-            value: a-special-value
-          - effect: NoSchedule
-            key: kubernetes.io/arch
-            value: arm64
-          - effect: NoSchedule
-            key: kubernetes.io/arch
-            value: amd64
-          - effect: NoSchedule
-            key: kubernetes.io/arch
-            value: ppc64le
-          - effect: NoSchedule
-            key: kubernetes.io/arch
-            value: s390x
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - effect: NoSchedule
+              key: a-special-taint
+              value: a-special-value
+            - effect: NoSchedule
+              key: kubernetes.io/arch
+              value: arm64
+            - effect: NoSchedule
+              key: kubernetes.io/arch
+              value: amd64
+            - effect: NoSchedule
+              key: kubernetes.io/arch
+              value: ppc64le
+            - effect: NoSchedule
+              key: kubernetes.io/arch
+              value: s390x
 
   - it: should have nodeSelectors if set
     set:
@@ -195,10 +200,10 @@ tests:
       webhook.nodeSelector:
         test-key: test-value
     asserts:
-    - equal:
-        path: spec.template.spec.nodeSelector
-        value:
-          test-key: test-value
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            test-key: test-value
 
   - it: should exist (without highavailabilty mode)
     set:
@@ -292,6 +297,9 @@ tests:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.name
+                envFrom:
+                  - configMapRef:
+                      name: install-config
                 livenessProbe:
                   httpGet:
                     path: /livez
@@ -304,6 +312,8 @@ tests:
                     name: server-port
                   - containerPort: 10080
                     name: livez
+                  - containerPort: 8080
+                    name: metrics
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -433,6 +443,9 @@ tests:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.name
+                envFrom:
+                  - configMapRef:
+                      name: install-config
                 livenessProbe:
                   httpGet:
                     path: /livez
@@ -445,6 +458,8 @@ tests:
                     name: server-port
                   - containerPort: 10080
                     name: livez
+                  - containerPort: 8080
+                    name: metrics
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -592,3 +607,17 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "some-repo:v1.0.1"
+
+  - it: debug flag disables high availability and security context
+    set:
+      platform: kubernetes
+      image: image-name
+      debug: true
+      webhook.highAvailability: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value: null
+      - equal:
+          path: spec.replicas
+          value: 1

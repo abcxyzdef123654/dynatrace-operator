@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/value"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
 	dtcsi "github.com/Dynatrace/dynatrace-operator/pkg/controllers/csi"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/env"
@@ -63,27 +64,28 @@ const (
 // Verification that the storage in the CSI driver directory does not increase when
 // there are multiple tenants and pods which are monitored.
 func InstallFromImage(t *testing.T) features.Feature {
-	builder := features.New("cloudnative codemodules injection from image")
-	builder.WithLabel("name", "cloudnative-codemodules-image")
+	builder := features.New("cloudnative-codemodules-image")
 	storageMap := make(map[string]int)
 	secretConfigs := tenant.GetMultiTenantSecret(t)
 	require.Len(t, secretConfigs, 2)
 
 	cloudNativeDynakube := *dynakubeComponents.New(
 		dynakubeComponents.WithName("cloudnative-codemodules"),
-		dynakubeComponents.WithNameBasedOneAgentNamespaceSelector(),
-		dynakubeComponents.WithApiUrl(secretConfigs[0].ApiUrl),
 		dynakubeComponents.WithCloudNativeSpec(codeModulesCloudNativeSpec(t)),
+		dynakubeComponents.WithNameBasedOneAgentNamespaceSelector(),
+		dynakubeComponents.WithNameBasedMetadataEnrichmentNamespaceSelector(),
+		dynakubeComponents.WithApiUrl(secretConfigs[0].ApiUrl),
 	)
 
 	appDynakube := *dynakubeComponents.New(
 		dynakubeComponents.WithName("app-codemodules"),
-		dynakubeComponents.WithNameBasedOneAgentNamespaceSelector(),
-		dynakubeComponents.WithApiUrl(secretConfigs[1].ApiUrl),
 		dynakubeComponents.WithApplicationMonitoringSpec(&dynakube.ApplicationMonitoringSpec{
 			AppInjectionSpec: *codeModulesAppInjectSpec(t),
 			UseCSIDriver:     true,
 		}),
+		dynakubeComponents.WithNameBasedOneAgentNamespaceSelector(),
+		dynakubeComponents.WithNameBasedMetadataEnrichmentNamespaceSelector(),
+		dynakubeComponents.WithApiUrl(secretConfigs[1].ApiUrl),
 	)
 
 	labels := cloudNativeDynakube.OneAgentNamespaceSelector().MatchLabels
@@ -133,9 +135,8 @@ const (
 // Connectivity in the dynatrace namespace and sample application namespace is restricted to
 // the local cluster. Sample application is installed. The test checks if DT_PROXY environment
 // variable is defined in the *dynakubeComponents-oneagent* container and the *application container*.
-func WithProxy(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Feature {
-	builder := features.New("codemodules injection with proxy")
-	builder.WithLabel("name", "codemodules-with-proxy")
+func WithProxy(t *testing.T, proxySpec *value.Source) features.Feature {
+	builder := features.New("codemodules-with-proxy")
 	secretConfigs := tenant.GetMultiTenantSecret(t)
 	require.Len(t, secretConfigs, 2)
 
@@ -188,10 +189,9 @@ func WithProxy(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Feature
 	return builder.Feature()
 }
 
-func WithProxyCA(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Feature {
+func WithProxyCA(t *testing.T, proxySpec *value.Source) features.Feature {
 	const configMapName = "proxy-ca"
-	builder := features.New("codemodules injection with proxy and custom CA")
-	builder.WithLabel("name", "codemodules-with-proxy-custom-ca")
+	builder := features.New("codemodules-with-proxy-custom-ca")
 	secretConfigs := tenant.GetMultiTenantSecret(t)
 	require.Len(t, secretConfigs, 2)
 
@@ -250,9 +250,8 @@ func WithProxyCA(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Featu
 	return builder.Feature()
 }
 
-func WithProxyAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Feature {
-	builder := features.New("codemodules injection with proxy and AG certificate")
-	builder.WithLabel("name", "codemodules-with-proxy-and-ag-cert")
+func WithProxyAndAGCert(t *testing.T, proxySpec *value.Source) features.Feature {
+	builder := features.New("codemodules-with-proxy-and-ag-cert")
 	secretConfigs := tenant.GetMultiTenantSecret(t)
 	require.Len(t, secretConfigs, 2)
 
@@ -261,7 +260,7 @@ func WithProxyAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) feature
 		dynakubeComponents.WithApiUrl(secretConfigs[0].ApiUrl),
 		dynakubeComponents.WithCloudNativeSpec(codeModulesCloudNativeSpec(t)),
 		dynakubeComponents.WithActiveGate(),
-		dynakubeComponents.WithActiveGateTlsSecret(agSecretName),
+		dynakubeComponents.WithActiveGateTLSSecret(agSecretName),
 		dynakubeComponents.WithIstioIntegration(),
 		dynakubeComponents.WithProxy(proxySpec),
 	)
@@ -281,7 +280,7 @@ func WithProxyAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) feature
 	agP12, _ := os.ReadFile(path.Join(project.TestDataDir(), agCertificateAndPrivateKey))
 	agSecret := secret.New(agSecretName, cloudNativeDynakube.Namespace,
 		map[string][]byte{
-			dynakube.TlsCertKey:             agCrt,
+			dynakube.TLSCertKey:             agCrt,
 			agCertificateAndPrivateKeyField: agP12,
 		})
 	builder.Assess("create AG TLS secret", secret.Create(agSecret))
@@ -316,9 +315,8 @@ func WithProxyAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) feature
 	return builder.Feature()
 }
 
-func WithProxyCAAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) features.Feature {
-	builder := features.New("codemodules injection with proxy and custom CA and AG certificate")
-	builder.WithLabel("name", "codemodules-with-proxy-custom-ca-ag-cert")
+func WithProxyCAAndAGCert(t *testing.T, proxySpec *value.Source) features.Feature {
+	builder := features.New("codemodules-with-proxy-custom-ca-ag-cert")
 	secretConfigs := tenant.GetMultiTenantSecret(t)
 	require.Len(t, secretConfigs, 2)
 
@@ -328,7 +326,7 @@ func WithProxyCAAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) featu
 		dynakubeComponents.WithCloudNativeSpec(codeModulesCloudNativeSpec(t)),
 		dynakubeComponents.WithCustomCAs(configMapName),
 		dynakubeComponents.WithActiveGate(),
-		dynakubeComponents.WithActiveGateTlsSecret(agSecretName),
+		dynakubeComponents.WithActiveGateTLSSecret(agSecretName),
 		dynakubeComponents.WithIstioIntegration(),
 		dynakubeComponents.WithProxy(proxySpec),
 	)
@@ -348,7 +346,7 @@ func WithProxyCAAndAGCert(t *testing.T, proxySpec *dynakube.DynaKubeProxy) featu
 	agP12, _ := os.ReadFile(path.Join(project.TestDataDir(), agCertificateAndPrivateKey))
 	agSecret := secret.New(agSecretName, cloudNativeDynakube.Namespace,
 		map[string][]byte{
-			dynakube.TlsCertKey:             agCrt,
+			dynakube.TLSCertKey:             agCrt,
 			agCertificateAndPrivateKeyField: agP12,
 		})
 	builder.Assess("create AG TLS secret", secret.Create(agSecret))

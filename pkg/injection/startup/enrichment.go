@@ -10,18 +10,17 @@ import (
 )
 
 type enrichmentJson struct {
-	ContainerName string `json:"k8s.container.name"`
-	PodUid        string `json:"k8s.pod.uid"`
-	PodName       string `json:"k8s.pod.name"`
-	NodeName      string `json:"k8s.node.name"`
-	NamespaceName string `json:"k8s.namespace.name"`
-	ClusterName   string `json:"k8s.cluster.name,omitempty"`
-	ClusterUID    string `json:"k8s.cluster.uid"`
-	WorkloadKind  string `json:"k8s.workload.kind"`
-	WorkloadName  string `json:"k8s.workload.name"`
-
-	// Deprecated
+	ContainerName   string `json:"k8s.container.name"`
+	PodUid          string `json:"k8s.pod.uid"`
+	PodName         string `json:"k8s.pod.name"`
+	NodeName        string `json:"k8s.node.name"`
+	NamespaceName   string `json:"k8s.namespace.name"`
+	ClusterName     string `json:"k8s.cluster.name,omitempty"`
+	ClusterUID      string `json:"k8s.cluster.uid"`
+	WorkloadKind    string `json:"k8s.workload.kind"`
+	WorkloadName    string `json:"k8s.workload.name"`
 	DTClusterEntity string `json:"dt.entity.kubernetes_cluster,omitempty"`
+
 	// Deprecated
 	DTClusterID string `json:"dt.kubernetes.cluster.id"`
 	// Deprecated
@@ -48,7 +47,7 @@ func (runner *Runner) createEnrichmentFiles() error {
 			WorkloadKind:  runner.env.WorkloadKind,
 			WorkloadName:  runner.env.WorkloadName,
 
-			DTClusterEntity: runner.env.K8ClusterName,
+			DTClusterEntity: runner.env.K8ClusterEntityID,
 			DTClusterID:     runner.env.K8ClusterID,
 			DTWorkloadKind:  runner.env.WorkloadKind,
 			DTWorkloadName:  runner.env.WorkloadName,
@@ -59,27 +58,36 @@ func (runner *Runner) createEnrichmentFiles() error {
 			return err
 		}
 
-		err = runner.createConfigFile(fmt.Sprintf(enrichmentJsonPathTemplate, container.Name), string(raw), true)
+		content := map[string]string{}
+
+		err = json.Unmarshal(raw, &content)
 		if err != nil {
 			return err
 		}
 
-		props := map[string]string{}
+		for key, value := range runner.env.WorkloadAnnotations {
+			content[key] = value
+		}
 
-		err = json.Unmarshal(raw, &props)
+		jsonContent, err := json.Marshal(content)
 		if err != nil {
 			return err
 		}
 
-		var content strings.Builder
-		for key, value := range props {
-			content.WriteString(key)
-			content.WriteString("=")
-			content.WriteString(value)
-			content.WriteString("\n")
+		err = runner.createConfigFile(fmt.Sprintf(enrichmentJsonPathTemplate, container.Name), string(jsonContent), true)
+		if err != nil {
+			return err
 		}
 
-		err = runner.createConfigFile(fmt.Sprintf(enrichmentPropsPathTemplate, container.Name), content.String(), true)
+		var propsContent strings.Builder
+		for key, value := range content {
+			propsContent.WriteString(key)
+			propsContent.WriteString("=")
+			propsContent.WriteString(value)
+			propsContent.WriteString("\n")
+		}
+
+		err = runner.createConfigFile(fmt.Sprintf(enrichmentPropsPathTemplate, container.Name), propsContent.String(), true)
 		if err != nil {
 			return err
 		}

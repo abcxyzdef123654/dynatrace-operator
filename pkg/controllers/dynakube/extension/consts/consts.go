@@ -1,14 +1,16 @@
 package consts
 
+import "github.com/Dynatrace/dynatrace-operator/pkg/api"
+
 const (
+	ExtensionsAnnotationSecretHash = api.InternalFlagPrefix + "secret-hash"
+
 	// secret
 	EecTokenSecretKey         = "eec.token"
 	EecTokenSecretValuePrefix = "EEC dt0x01"
 
 	OtelcTokenSecretKey         = "otelc.token"
 	OtelcTokenSecretValuePrefix = "dt0x01"
-
-	SecretSuffix = "-extensions-token"
 
 	// shared volume name between eec and OtelC
 	ExtensionsTokensVolumeName = "tokens"
@@ -20,7 +22,8 @@ const (
 	ExtensionsCollectorComPort        = 14599
 	ExtensionsCollectorTargetPortName = "collector-com"
 
-	ExtensionsCustomTlsCertificate = "custom-tls-certificates"
+	ExtensionsSelfSignedTLSSecretSuffix     = "-extensions-controller-tls"
+	ExtensionsSelfSignedTLSCommonNameSuffix = "-extensions-controller.dynatrace"
 
 	// TLSKeyDataName is the key used to store a TLS private key in the secret's data field.
 	TLSKeyDataName = "tls.key"

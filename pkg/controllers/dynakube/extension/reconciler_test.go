@@ -5,8 +5,11 @@ import (
 	"testing"
 
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/scheme/fake"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/shared/communication"
 	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube"
+	"github.com/Dynatrace/dynatrace-operator/pkg/api/v1beta3/dynakube/activegate"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/extension/consts"
+	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/dynakube/extension/servicename"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/conditions"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/dttoken"
 	k8ssecret "github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/secret"
@@ -47,7 +50,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		dk := createDynakube()
 
 		// mock SecretCreated condition
-		conditions.SetSecretCreated(dk.Conditions(), consts.ExtensionsSecretConditionType, dk.Name+consts.SecretSuffix)
+		conditions.SetSecretCreated(dk.Conditions(), consts.ExtensionsSecretConditionType, dk.ExtensionsTokenSecretName())
 
 		// mock secret
 		secretToken, _ := dttoken.New(consts.EecTokenSecretValuePrefix)
@@ -81,7 +84,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	})
 	t.Run("Extension secret is generated when Prometheus is enabled", func(t *testing.T) {
 		dk := createDynakube()
-		dk.Spec.Extensions.Prometheus.Enabled = true
+		dk.Spec.Extensions.Enabled = true
 
 		fakeClient := fake.NewClient()
 		r := NewReconciler(fakeClient, fakeClient, dk)
@@ -101,11 +104,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 		condition := meta.FindStatusCondition(*dk.Conditions(), consts.ExtensionsSecretConditionType)
 		assert.Equal(t, metav1.ConditionTrue, condition.Status)
 		assert.Equal(t, conditions.SecretCreatedReason, condition.Reason)
-		assert.Equal(t, dk.Name+consts.SecretSuffix+" created", condition.Message)
+		assert.Equal(t, dk.ExtensionsTokenSecretName()+" created", condition.Message)
 	})
 	t.Run(`Extension SecretCreated failure condition is set when error`, func(t *testing.T) {
 		dk := createDynakube()
-		dk.Spec.Extensions.Prometheus.Enabled = true
+		dk.Spec.Extensions.Enabled = true
 
 		misconfiguredReader, _ := client.New(&rest.Config{}, client.Options{})
 		r := NewReconciler(fake.NewClient(), misconfiguredReader, dk)
@@ -121,9 +124,9 @@ func TestReconciler_Reconcile(t *testing.T) {
 		assert.Contains(t, condition.Message, "A problem occurred when using the Kubernetes API")
 	})
 
-	t.Run("Create service when prometheus is enabled with minimal setup", func(t *testing.T) {
+	t.Run("Create service when extensions are enabled with minimal setup", func(t *testing.T) {
 		dk := createDynakube()
-		dk.Spec.Extensions.Prometheus.Enabled = true
+		dk.Spec.Extensions.Enabled = true
 
 		mockK8sClient := fake.NewClient(dk)
 
@@ -133,7 +136,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		require.NoError(t, err)
 
 		var svc corev1.Service
-		err = mockK8sClient.Get(context.Background(), client.ObjectKey{Name: r.buildServiceName(), Namespace: testNamespace}, &svc)
+		err = mockK8sClient.Get(context.Background(), client.ObjectKey{Name: servicename.Build(r.dk), Namespace: testNamespace}, &svc)
 		require.NoError(t, err)
 		assert.NotNil(t, svc)
 
@@ -146,9 +149,9 @@ func TestReconciler_Reconcile(t *testing.T) {
 		assert.Equal(t, dk.Name+consts.ExtensionsControllerSuffix+" created", condition.Message)
 	})
 
-	t.Run("Don't create service when prometheus is disabled with minimal setup", func(t *testing.T) {
+	t.Run("Don't create service when extensions are disabled with minimal setup", func(t *testing.T) {
 		dk := createDynakube()
-		dk.Spec.Extensions.Prometheus.Enabled = false
+		dk.Spec.Extensions.Enabled = false
 
 		mockK8sClient := fake.NewClient(dk)
 
@@ -158,7 +161,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		require.NoError(t, err)
 
 		var svc corev1.Service
-		err = mockK8sClient.Get(context.Background(), client.ObjectKey{Name: r.buildServiceName(), Namespace: testNamespace}, &svc)
+		err = mockK8sClient.Get(context.Background(), client.ObjectKey{Name: servicename.Build(r.dk), Namespace: testNamespace}, &svc)
 		require.Error(t, err)
 		assert.True(t, k8serrors.IsNotFound(err))
 	})
@@ -172,11 +175,9 @@ func createDynakube() *dynakube.DynaKube {
 		},
 		Spec: dynakube.DynaKubeSpec{},
 		Status: dynakube.DynaKubeStatus{
-			ActiveGate: dynakube.ActiveGateStatus{
-				ConnectionInfoStatus: dynakube.ActiveGateConnectionInfoStatus{
-					ConnectionInfoStatus: dynakube.ConnectionInfoStatus{
-						TenantUUID: "abc",
-					},
+			ActiveGate: activegate.Status{
+				ConnectionInfo: communication.ConnectionInfo{
+					TenantUUID: "abc",
 				},
 			},
 			KubeSystemUUID: "abc",

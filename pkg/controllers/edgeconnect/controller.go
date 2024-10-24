@@ -16,6 +16,7 @@ import (
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/edgeconnect/secret"
 	"github.com/Dynatrace/dynatrace-operator/pkg/controllers/edgeconnect/version"
 	"github.com/Dynatrace/dynatrace-operator/pkg/oci/registry"
+	"github.com/Dynatrace/dynatrace-operator/pkg/util/conditions"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/dttoken"
 	"github.com/Dynatrace/dynatrace-operator/pkg/util/hasher"
 	k8sdeployment "github.com/Dynatrace/dynatrace-operator/pkg/util/kubeobjects/deployment"
@@ -41,10 +42,6 @@ const (
 	defaultUpdateInterval = 30 * time.Minute
 
 	finalizerName = "server"
-
-	defaultNamespaceName    = "default"
-	kubernetesServiceName   = "kubernetes"
-	kubeSystemNamespaceName = "kube-system"
 )
 
 var (
@@ -204,12 +201,13 @@ func (controller *Controller) reconcileEdgeConnect(ctx context.Context, ec *edge
 	oldStatus := *ec.Status.DeepCopy()
 
 	err := controller.reconcileEdgeConnectCR(ctx, ec)
+
 	if err != nil {
 		ec.Status.SetPhase(status.Error)
 		_log.Debug("error reconciling EdgeConnect, setting phase 'Error'")
 	} else {
-		_log.Debug("moving EdgeConnect to phase 'Running'")
-		ec.Status.SetPhase(status.Running)
+		_log.Debug("moving EdgeConnect to correct phase")
+		ec.Status.SetPhase(controller.determineEdgeConnectPhase(ec))
 	}
 
 	if isDifferentStatus, err := hasher.IsDifferent(oldStatus, ec.Status); err != nil {
@@ -790,17 +788,23 @@ func (controller *Controller) createOrUpdateEdgeConnectConfigSecret(ctx context.
 
 			newToken, err := dttoken.New("dt0e01")
 			if err != nil {
+				conditions.SetSecretGenFailed(ec.Conditions(), consts.SecretConfigConditionType, err)
+
 				return "", "", err
 			}
 
 			token = newToken.String()
 		} else {
+			conditions.SetSecretGenFailed(ec.Conditions(), consts.SecretConfigConditionType, err)
+
 			return "", "", err
 		}
 	}
 
 	configFile, err := secret.PrepareConfigFile(ctx, ec, controller.apiReader, token)
 	if err != nil {
+		conditions.SetSecretGenFailed(ec.Conditions(), consts.SecretConfigConditionType, err)
+
 		return "", "", err
 	}
 
@@ -813,6 +817,8 @@ func (controller *Controller) createOrUpdateEdgeConnectConfigSecret(ctx context.
 	)
 
 	if err != nil {
+		conditions.SetSecretGenFailed(ec.Conditions(), consts.SecretConfigConditionType, err)
+
 		return "", "", errors.WithStack(err)
 	}
 
@@ -821,11 +827,17 @@ func (controller *Controller) createOrUpdateEdgeConnectConfigSecret(ctx context.
 	_, err = query.CreateOrUpdate(ctx, secretConfig)
 	if err != nil {
 		log.Info("could not create or update secret for ec.yaml", "name", secretConfig.Name)
+		conditions.SetKubeApiError(ec.Conditions(), consts.SecretConfigConditionType, err)
 
 		return "", "", err
 	}
 
+	conditions.SetSecretCreated(ec.Conditions(), consts.SecretConfigConditionType, secretConfig.Name)
+
 	hash, err = hasher.GenerateHash(secretConfig.Data)
+	if err != nil {
+		conditions.SetSecretGenFailed(ec.Conditions(), consts.SecretConfigConditionType, err)
+	}
 
 	return token, hash, err
 }
