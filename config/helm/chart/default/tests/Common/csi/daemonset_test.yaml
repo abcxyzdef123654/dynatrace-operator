@@ -12,6 +12,7 @@ tests:
       - hasDocuments:
           count: 1
 
+
   - it: should have tolerations by default
     set:
       platform: kubernetes
