@@ -51,8 +51,6 @@ func rootCommand(_ *cobra.Command, _ []string) error {
 	return errors.New("operator binary must be called with one of the subcommands")
 }
 
-// comment
-
 func main() {
 	ctrl.SetLogger(log.Logger)
 
