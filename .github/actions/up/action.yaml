@@ -21,3 +21,7 @@ runs:
       env:
         SBOM: ${{ inputs.sbom }}
         IMAGE: ${{ inputs.image }}
+    - name: image inputs
+      shell: bash
+      run: |
+        echo "${{ inputs.sbom }}" "${{ inputs.image }}"
