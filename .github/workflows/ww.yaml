@@ -1,0 +1,23 @@
+name: ww.yaml
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      suffix: ${{ steps.suffix.outputs.suffix }}
+    steps:
+      - id: suffix
+        run: echo "suffix=ff" >> $GITHUB_OUTPUT
+
+  detect-suffix:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: suffix
+        run: |
+          echo "suffix raw: !${{ needs.prepare.outputs.suffix }}!"
+          echo "suffix: !${{ needs.prepare.outputs.suffix != '' && format('-{0}', needs.prepare.outputs.suffix) || '' }}!"
