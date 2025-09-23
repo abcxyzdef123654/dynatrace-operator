@@ -21,7 +21,7 @@ env:
 jobs:
   detect-changes:
     name: Detect Changes
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       go_changed: ${{ steps.go-files.outputs.any_changed }}
       docker_changed: ${{ steps.dockerfile.outputs.any_changed }}
